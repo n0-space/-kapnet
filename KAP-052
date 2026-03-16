@@ -1,0 +1,160 @@
+<pre>
+  BIP: TBD
+  Layer: Applications
+  Title: State Commitment Tree Format
+  Author: TBD
+  Comments-URI: TBD
+  Status: Draft
+  Type: Standards Track
+  Created: 2026-03-16
+  License: BSD-2-Clause
+  Requires: 3
+</pre>
+
+# Abstract
+
+This document specifies the Kapnet persistent state commitment tree, including
+namespace-separated subtrees, inclusion and non-inclusion proofs, and
+deterministic update ordering.
+
+# Copyright
+
+This BIP is licensed under the BSD 2-clause license.
+
+# Motivation
+
+Checkpointing is only meaningful if validators commit to the same state
+structure. This document defines the tree shape and update discipline for
+Kapnet state.
+
+# Specification
+
+## Root Structure
+
+The Kapnet state root is the Merkle root of the following top-level named
+subroots in lexicographic label order:
+
+- `balances`
+- `blobs`
+- `capabilities`
+- `daos`
+- `guilds`
+- `knots`
+- `markets`
+- `rooms`
+- `scripts`
+- `submissions`
+- `users`
+
+Each top-level entry is a map from key to committed leaf hash.
+
+## Map Structure
+
+Each subtree is a sorted Merkle map keyed by canonical byte string.
+
+A leaf commits to:
+
+- leaf key
+- leaf value hash
+- leaf metadata hash
+
+Branch hashing MUST be deterministic and position-sensitive.
+
+## Leaf Value Rule
+
+This BIP does not define every value schema. It only defines that each leaf
+value MUST itself be canonically serialized and hashed before insertion.
+
+## Inclusion Proof
+
+An inclusion proof MUST provide:
+
+- key
+- committed leaf hash
+- path siblings from leaf to subtree root
+- path siblings from subtree root to global state root
+
+## Non-Inclusion Proof
+
+A non-inclusion proof MUST provide enough neighboring branch or leaf information
+to prove that no committed leaf with the queried key exists at the claimed root.
+
+## Update Ordering
+
+Within a replay step, all state writes MUST be applied in the following order:
+
+1. deletions
+2. replacements
+3. insertions
+
+Within each class, writes MUST be ordered by:
+
+1. top-level subtree label
+2. key bytes
+
+## Atomic Replay Step
+
+All writes produced by one successfully replayed object form one atomic replay
+step. Partial subtree updates are invalid.
+
+## Key Namespacing
+
+Keys MUST begin with a namespace prefix.
+
+Examples:
+
+- DAO keys begin with `dao/`
+- room keys begin with `room/`
+- submission keys begin with `sub/`
+- balance keys begin with `bal/`
+
+The exact key schema for each subtree is defined by the relevant object BIP.
+
+## Snapshot Encoding
+
+A state snapshot MUST encode:
+
+- global state root
+- top-level subroot list
+- subtree identifiers
+- leaf count commitments
+- optional bundled proofs
+
+# Example
+
+A submission insertion may update:
+
+- `submissions/sub/<submission-id>`
+- `rooms/room/<room-id>/head`
+- `users/user/<author-id>/last-active`
+
+These writes are collected, sorted by subtree then key, and committed atomically.
+
+# Rationale
+
+A named-subroot structure makes proofs more interpretable and allows different
+clients to care about different slices of the state without redefining the
+global root.
+
+# Backward Compatibility
+
+This BIP does not alter Bitcoin consensus.
+
+# Security Considerations
+
+Key-prefix ambiguity can cause silent collisions. All key schemas MUST be
+injective.
+
+Implementations MUST use constant and deterministic branch hashing.
+
+# Reference Implementation
+
+None.
+
+# Deployment
+
+This BIP should be implemented before checkpoint or execution BIPs.
+
+# Acknowledgements
+
+TBD
