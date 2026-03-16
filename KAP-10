@@ -1,0 +1,261 @@
+<pre>
+  BIP: TBD
+  Layer: Applications
+  Title: TXXM Envelope Format
+  Author: TBD
+  Comments-URI: TBD
+  Status: Draft
+  Type: Standards Track
+  Created: 2026-03-16
+  License: BSD-2-Clause
+  Requires: 3, TBD
+</pre>
+
+# Abstract
+
+This document defines the top-level Transaction CrossMail (TXXM) envelope used
+by Kapnet. The TXXM envelope is the canonical transport and replay unit for
+Kapnet-native actions. It includes addressing, object class, payload
+commitment, dependency references, validity horizon, postage hooks, signatures,
+and settlement hints.
+
+# Copyright
+
+This BIP is licensed under the BSD 2-clause license.
+
+# Motivation
+
+Kapnet requires a single top-level object that can carry submissions,
+validations, votes, governance actions, market objects, receipts, and other
+application-level messages without redefining transport, dependency, and
+signature structure for every subtype.
+
+The TXXM envelope provides that common shell.
+
+# Specification
+
+## Envelope Layout
+
+A TXXM object MUST encode the following fields in order:
+
+1. `type_tag`
+2. `version`
+3. `network_id`
+4. `message_class`
+5. `namespace_id`
+6. `sender_key`
+7. `nonce`
+8. `created_at`
+9. `valid_from`
+10. `valid_until`
+11. `dependency_count`
+12. `dependencies`
+13. `payload_hash`
+14. `payload_length`
+15. `postage_class`
+16. `postage_limit`
+17. `settlement_hint_flags`
+18. `attachment_root`
+19. `signature_scheme`
+20. `signature`
+21. optional extensions
+
+## Field Definitions
+
+### `network_id`
+
+A `u32` identifying the Kapnet deployment.
+
+### `message_class`
+
+A `u16` registry value identifying the semantic family of the payload.
+
+### `namespace_id`
+
+A 32-byte identifier naming the DAO, guild, room, application namespace, or
+other scoped domain within which the message is primarily evaluated.
+
+### `sender_key`
+
+The sender identity key or delegated capability key, encoded in the format
+declared by the selected `signature_scheme`.
+
+### `nonce`
+
+A sender-local 64-bit anti-replay nonce.
+
+The tuple `(sender_key, nonce, network_id)` MUST uniquely identify a sent TXXM
+attempt.
+
+### `created_at`
+
+A `u64` wall-clock timestamp in seconds since Unix epoch.
+
+This field is informational unless another BIP makes it policy-relevant.
+
+### `valid_from`, `valid_until`
+
+`u64` validity bounds. A message is only eligible for relay or replay within
+its declared interval unless a defining subtype explicitly overrides expiry
+handling.
+
+### `dependencies`
+
+A list of dependency references. Each dependency encodes:
+
+- dependency kind (`u8`)
+- referenced object hash (32 bytes)
+
+Defined dependency kinds:
+
+- `0x00`: causal parent
+- `0x01`: required state root
+- `0x02`: required braid tip
+- `0x03`: required knot
+- `0x04`: required market receipt
+- `0x05`: required capability certificate
+
+Unknown dependency kinds are invalid unless enabled by extension rules.
+
+### `payload_hash`
+
+A 32-byte hash of the canonical payload bytes.
+
+### `payload_length`
+
+The length of the payload in bytes, allowing relay admission control without
+parsing the full payload body.
+
+### `postage_class`
+
+A `u16` relay or pricing class.
+
+### `postage_limit`
+
+A `u64` maximum sender-declared spend or burn authorization for relay and
+storage admission.
+
+### `settlement_hint_flags`
+
+A `u16` bitfield advertising optional Bitcoin-interface or settlement intent.
+
+Defined bits:
+
+- bit 0: anchorable
+- bit 1: requests receipt
+- bit 2: may settle externally
+- bit 3: intended for archived retrieval
+- bit 4: references weakwork
+- bit 5: references heavy aux proof
+
+### `attachment_root`
+
+A 32-byte Merkle root over external attachments, or all zeroes if none.
+
+### `signature_scheme`
+
+A `u16` identifying the signature system.
+
+### `signature`
+
+The signature over the TXXM signing preimage.
+
+## Signing Preimage
+
+The TXXM signature preimage MUST be the canonical serialization of all fields
+except `signature`.
+
+## Payload Binding
+
+The payload bytes are not embedded by this specification. A higher-level
+transport MAY carry them inline or out-of-band, but the TXXM envelope always
+commits to exactly one payload hash and length.
+
+A relay MAY require inline payload delivery for certain message classes.
+
+## Object Identifier
+
+The TXXM object identifier MUST be the 32-byte hash of the canonical full TXXM
+encoding including the signature.
+
+## Validity Rules
+
+A TXXM is invalid if:
+
+- its signature fails,
+- its payload hash does not match the delivered payload,
+- its `valid_until` is less than `valid_from`,
+- it contains duplicate dependency entries,
+- its declared payload length does not match the delivered payload,
+- its nonce reuses an already-accepted live message identity in the same replay
+  domain.
+
+## Replay Domain
+
+Unless otherwise specified, the replay domain of a TXXM is:
+
+- `network_id`
+- `namespace_id`
+- `sender_key`
+- `nonce`
+
+## Minimal Relay Eligibility
+
+A node MAY refuse relay for local policy reasons, but a minimally well-formed
+TXXM MUST satisfy:
+
+- canonical serialization,
+- recognized `message_class`,
+- valid signature scheme,
+- valid envelope signature,
+- non-expired validity interval,
+- payload delivered or fetchable,
+- no invalid dependency encoding.
+
+# Example
+
+A room submission TXXM may contain:
+
+- `message_class = submission`
+- `namespace_id = room id`
+- one causal dependency on parent submission
+- one required state-root dependency
+- one attachment root for large media
+- relay postage authorization
+- sender signature
+
+# Rationale
+
+The payload is committed by hash rather than always embedded because Kapnet
+expects a mixture of small replay-critical bodies and large archival or media
+attachments.
+
+The envelope separates generic relay and replay properties from semantic
+payload interpretation.
+
+# Backward Compatibility
+
+This specification is external to Bitcoin consensus and existing Bitcoin
+network messages.
+
+# Security Considerations
+
+Validity bounds do not guarantee fresh delivery; they only bound acceptance.
+Nodes MUST combine this document with local anti-replay state.
+
+Payload fetch indirection creates resource-exhaustion risk. Nodes SHOULD impose
+size, retrieval, and admission limits before accepting dependency-heavy or
+blob-heavy TXXMs.
+
+# Reference Implementation
+
+None.
+
+# Deployment
+
+This BIP depends on canonical serialization and should be implemented before
+message-class-specific payload standards.
+
+# Acknowledgements
+
+TBD
