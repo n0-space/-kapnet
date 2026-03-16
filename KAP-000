@@ -1,0 +1,498 @@
+<pre>
+  BIP: TBD
+  Layer: Applications
+  Title: Kapnet Terminology, Notation, and Conformance Language
+  Author: TBD
+  Comments-URI: TBD
+  Status: Draft
+  Type: Informational
+  Created: 2026-03-16
+  License: BSD-2-Clause
+  Requires: 3
+</pre>
+
+# Abstract
+
+This document defines the shared terminology, notation, naming conventions, and
+conformance language used throughout the Kapnet proposal family. Its purpose is
+to reduce ambiguity across specifications concerning serialization, replay,
+ordering, execution, anchoring, markets, namespaces, and interoperability.
+
+# Copyright
+
+This BIP is licensed under the BSD 2-clause license.
+
+# Motivation
+
+A protocol family that spans transport, message objects, replay semantics,
+work-claims, checkpointing, scripting, package deployment, archival retrieval,
+and Bitcoin anchoring cannot remain coherent if each document uses different
+words for the same concepts or the same word for different concepts.
+
+Existing Bitcoin proposals benefit from precise naming and narrow scope. Kapnet
+requires the same discipline. This document provides that common vocabulary so
+that later BIPs do not repeatedly redefine basic objects and do not silently
+drift in meaning over time.
+
+# Specification
+
+## Conformance Language
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+document are to be interpreted as described in BCP 14 when, and only when, they
+appear in all capitals.
+
+## Scope
+
+This document defines:
+
+- terminology,
+- notation,
+- naming conventions,
+- identifier formatting guidance,
+- hash and encoding notation,
+- time and ordering vocabulary,
+- distinctions between replay-critical and policy-local behavior.
+
+This document does not by itself define any new byte format, consensus rule,
+relay policy, or execution semantics.
+
+## General Terminology
+
+### Kapnet
+
+Kapnet is the protocol family described by this repository. It is an overlay
+protocol system that may interact with Bitcoin as a settlement or anchoring
+substrate while maintaining its own message, replay, execution, and state
+structures unless explicitly defined otherwise.
+
+### Overlay
+
+An overlay is any protocol behavior, data structure, message format, ordering
+rule, or execution rule that is external to Bitcoin consensus validity unless a
+separate Bitcoin proposal explicitly says otherwise.
+
+### Replay Domain
+
+A replay domain is the set of conditions under which a message or state
+transition is considered to belong to one shared causally-evaluated history.
+
+Replay domains are usually determined by a combination of network id,
+namespace, state root lineage, and message identity rules.
+
+### Namespace
+
+A namespace is a scoped region of Kapnet meaning or state. Namespaces may refer
+to DAOs, guilds, rooms, package domains, market domains, archival domains, or
+other application-level partitions.
+
+A namespace identifier MUST be treated as an opaque identifier unless a more
+specific BIP defines its internal derivation.
+
+### Object
+
+An object is any canonically serialized Kapnet byte sequence with a type and
+version. Objects may be top-level or nested.
+
+### Identifier
+
+An identifier is a stable reference to an object, namespace, key, market slot,
+state leaf, or other protocol entity.
+
+Unless otherwise stated, identifiers are byte strings rather than human-readable
+names.
+
+## Messaging Terminology
+
+### TXXM
+
+TXXM, or Transaction CrossMail, is the top-level Kapnet message envelope. A TXXM
+commits to payload data, dependencies, sender identity, validity bounds, and
+other generic relay and replay properties.
+
+### Payload
+
+A payload is the semantic body committed by a TXXM envelope. The payload defines
+the application-level meaning of the message.
+
+### Message Class
+
+A message class is the registered semantic family of a TXXM payload, such as
+submission, validation, vote, governance action, market object, or receipt.
+
+### Attachment
+
+An attachment is external or auxiliary content committed to by a message but not
+necessarily embedded inline in the replay-critical body.
+
+### Blob
+
+A blob is a large content-addressed attachment or chunked content object whose
+retrieval and retention may be handled separately from live relay.
+
+## Ordering Terminology
+
+### Braid
+
+A braid is the live concurrent ordering surface formed by accepted Kapnet
+message objects prior to checkpoint crystallization.
+
+A braid preserves concurrency, partial ordering, and conflict structure.
+
+### Braid Node
+
+A braid node is a specific live ordering unit corresponding to one accepted
+message and its associated weight, dependencies, and conflict keys.
+
+### Frontier
+
+The frontier is the current set of live braid tips not yet strictly dominated by
+heavier or later-compatible descendants.
+
+### Conflict Key
+
+A conflict key is an identifier representing an exclusivity class. Two nodes
+sharing a conflict key may be mutually exclusive if the consuming rules so
+state.
+
+### Candidate Braid
+
+A candidate braid is a compatible down-closed subset of live braid nodes under
+consideration for checkpoint inclusion.
+
+### Knot
+
+A knot is a crystallized checkpoint object derived from a selected candidate
+braid and a deterministic replay procedure.
+
+### Checkpoint
+
+A checkpoint is the act or result of reducing the live braid into an ordered,
+durable state transition with a committed post-state root.
+
+### Finalization
+
+Finalization is the condition under which a knot is no longer subject to valid
+replacement within a given replay domain.
+
+## State Terminology
+
+### State Root
+
+A state root is the cryptographic commitment to the full persistent Kapnet state
+at a particular replay boundary.
+
+### Subroot
+
+A subroot is a top-level or nested subtree commitment within the larger state
+commitment tree.
+
+### Leaf
+
+A leaf is a committed key-value entry in the state structure.
+
+### Inclusion Proof
+
+An inclusion proof is a proof that a given leaf or object is committed under a
+particular root.
+
+### Non-Inclusion Proof
+
+A non-inclusion proof is a proof that no committed leaf exists at a queried key
+under a particular root.
+
+### Atomic Replay Step
+
+An atomic replay step is the full state mutation produced by one successfully
+replayed message or execution result, applied as an indivisible unit.
+
+## Work Terminology
+
+### Weakwork
+
+Weakwork is a protocol-defined proof object representing scarce computational
+effort below Bitcoin’s full proof-of-work threshold and usable for local Kapnet
+ordering, admission, or market functions.
+
+### Weakwork Claim
+
+A weakwork claim is the canonically serialized object asserting that a claimant
+has produced valid weakwork for a specific domain, challenge, and target.
+
+### Claim Domain
+
+The claim domain is the explicit domain separator that prevents the unintended
+reuse of a weakwork claim across unrelated contexts.
+
+### Work Digest
+
+The work digest is the proof result checked against a threshold according to the
+weakwork validation rules.
+
+### Heavy Auxiliary Proof of Work
+
+Heavy auxiliary proof of work, or heavy auxPoW, is a proof or commitment system
+intended to connect Kapnet claims to stronger external proof contexts such as
+Bitcoin block production. Its exact meaning is defined by separate BIPs.
+
+### Hashproductive Capital
+
+Hashproductive capital refers to resources controlled for the purpose of
+producing work-like proofs, including but not limited to weakwork or auxiliary
+proofs.
+
+## Execution Terminology
+
+### KScript
+
+KScript is the Kapnet virtual machine language and execution model for bounded,
+deterministic programmable behavior.
+
+### Program
+
+A program is a canonically encoded KScript bytecode object.
+
+### Execution Result
+
+An execution result is the deterministic outcome of running a KScript program,
+including success or failure status, return values, and state-write intent.
+
+### Write Intent
+
+A write intent is a structured statement of proposed state mutation produced by
+execution but not applied until accepted by the surrounding replay logic.
+
+### Host Interface
+
+The host interface is the standardized boundary between KScript execution and
+externally provided state, permissions, or services.
+
+### Kapplet
+
+A kapplet is a packaged Kapnet execution module containing code, manifest
+metadata, dependency declarations, and lifecycle policy.
+
+## Governance and Social Terminology
+
+### DAO
+
+A DAO is a first-class Kapnet governance object with manifest, treasury,
+capability, and rule surfaces defined by separate BIPs.
+
+### Guild
+
+A guild is a higher-level namespace grouping or institutional domain used for
+organization and discourse.
+
+### Room
+
+A room is a scoped discourse or coordination subspace, generally contained
+within a guild or other parent namespace.
+
+### Submission
+
+A submission is a user- or agent-originated content object or action object that
+serves as a primary unit of discourse or coordination.
+
+### Validation
+
+Validation is the act of attesting to, scoring, checking, or otherwise evaluating
+a submission or other protocol object according to defined rules.
+
+### Membership Proof
+
+A membership proof is an object attesting that an identity or capability holds
+standing within a namespace or institution.
+
+### Reputation Object
+
+A reputation object is a portable or local state object representing standing,
+history, score, or privilege in a context defined by separate BIPs.
+
+## Relay and Archival Terminology
+
+### Relay
+
+A relay is a service that forwards, admits, stores, or refuses Kapnet objects
+according to protocol rules and local policy.
+
+### Admission Control
+
+Admission control is the set of rules determining whether an object is accepted
+for transport, storage, or replay consideration.
+
+### Postage
+
+Postage is the pricing or burn-like surface associated with resource consumption
+such as routing, storage, retrieval, or priority handling.
+
+### Hedlbit
+
+Hedlbit is the protocol unit used by certain Kapnet documents for postage,
+reserve-time accounting, or resource pricing.
+
+### Provider
+
+A provider is a service that offers content retrieval, archival retention,
+lookup, or other support functions.
+
+### Retrieval Proof
+
+A retrieval proof is evidence that a requested object, attachment, or blob was
+delivered or is authentically unavailable.
+
+## Bitcoin Interface Terminology
+
+### Anchor
+
+An anchor is a Bitcoin-facing or externally published commitment to a Kapnet
+object, root, batch, or proof identifier.
+
+### Anchoring
+
+Anchoring is the act of encoding or publishing a Kapnet commitment into a
+Bitcoin-relevant carrier or equivalent external substrate.
+
+### Carrier Surface
+
+A carrier surface is the location or mechanism through which an anchor payload
+is published, such as an OP_RETURN output, coinbase-carried payload, or other
+approved structure.
+
+### Settlement Hook
+
+A settlement hook is a standardized interface point by which Kapnet objects or
+summaries may reference or interact with Bitcoin transaction-level publication.
+
+### Overlay-Valid
+
+Overlay-valid means valid according to Kapnet rules without implying anything
+about Bitcoin relay, mining, standardness, or consensus acceptance.
+
+### Policy-Compatible
+
+Policy-compatible means plausibly admissible under prevailing software or miner
+behavior, but not guaranteed by consensus.
+
+## Notation
+
+### Byte Strings
+
+Byte strings are written as hexadecimal when displayed textually, without
+embedded whitespace unless formatting requires grouping.
+
+Unless otherwise stated, hexadecimal is case-insensitive.
+
+### Hashes
+
+`H(x)` denotes a cryptographic hash of `x` as defined by the consuming BIP.
+
+`H2(x)` denotes double application of the hash function when that convention is
+used.
+
+A displayed hash value is a byte string, not an integer, unless explicitly
+stated otherwise.
+
+### Concatenation
+
+`x || y` denotes bytewise concatenation.
+
+### Ordering
+
+“Lexicographic order” means bytewise lexicographic order over canonical encoded
+bytes unless another order is explicitly named.
+
+### Integer Interpretation
+
+When a hash digest or byte string is interpreted as an integer, it MUST be
+interpreted as a non-negative big-endian integer unless another BIP explicitly
+states otherwise.
+
+### Time
+
+Unix timestamps are seconds since the Unix epoch in UTC unless otherwise stated.
+
+“Freshness” refers to admissibility relative to a bounded time interval, not to
+subjective recency.
+
+### Height and Index
+
+“Height” refers to a sequence position in a chain-like or checkpoint-like
+history.
+
+“Index” refers to a position in a list, registry, or checkpoint sequence.
+
+## Naming Conventions
+
+BIPs in this repository SHOULD use the following naming patterns where relevant:
+
+- `*_id` for opaque stable identifiers
+- `*_hash` for a cryptographic hash of canonical bytes
+- `*_root` for a Merkle, sparse Merkle, or similar commitment root
+- `*_count` for explicit cardinality
+- `*_flags` for bitfields
+- `created_at`, `valid_from`, `valid_until`, `expires_at` for timestamps
+- `network_id`, `namespace_id`, `checkpoint_index` for scoped identifiers
+
+These are conventions, not by themselves consensus rules, unless a later BIP
+makes a specific field normative.
+
+## Replay-Critical Versus Policy-Local Behavior
+
+A rule is replay-critical if violating or interpreting it differently can lead to
+different canonical object identities, different candidate selection, different
+replay results, or different committed state roots.
+
+A rule is policy-local if it affects admission, storage, preference, pricing, or
+display behavior without altering replay-critical outcomes.
+
+Specifications SHOULD clearly distinguish these categories.
+
+## Undefined Terms
+
+If a later BIP introduces a new term not defined here, that BIP SHOULD define it
+explicitly and SHOULD do so in a way that does not conflict with this glossary.
+
+# Rationale
+
+Kapnet needs an explicit distinction between transport, replay, execution,
+policy, and anchoring vocabulary. Without that separation, terms like “valid,”
+“accepted,” “included,” “anchored,” and “finalized” become dangerously
+overloaded.
+
+This document also formalizes the distinction between overlay validity and
+Bitcoin compatibility so that Bitcoin-facing documents do not overclaim what the
+base chain recognizes.
+
+# Backward Compatibility
+
+This document is informational only. It introduces no wire-format changes,
+consensus rules, or policy requirements for Bitcoin or Kapnet implementations.
+
+# Security Considerations
+
+Terminology drift is not merely editorial. Ambiguous words can cause real
+implementation divergence, especially around replay boundaries, proof reuse,
+state mutation, and anchoring claims.
+
+Authors of later BIPs SHOULD avoid synonyms that blur the distinction between:
+
+- valid and accepted,
+- accepted and included,
+- included and finalized,
+- anchored and verified,
+- policy-compatible and consensus-enforced.
+
+# Reference Implementation
+
+None.
+
+# Deployment
+
+This BIP requires no deployment. It is intended to be referenced by all later
+Kapnet BIPs.
+
+# Acknowledgements
+
+TBD
